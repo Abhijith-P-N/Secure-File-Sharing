@@ -1,0 +1,122 @@
+# ============================================================================
+# Secure File Sharing Platform - docker-compose
+# Author: Abhijith (Database, Storage & DevOps)
+#
+# Usage:
+#   docker compose up -d                  # database only (works for all 4 members)
+#   docker compose --profile full up -d   # full stack: db + backend + frontend
+#   docker compose --profile prod up -d   # + production nginx (HTTPS) reverse proxy
+#
+# The database schema auto-runs on first boot via ./database/schema.sql.
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # Database - PostgreSQL 16
+  # --------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: sfs-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-secure_files}
+      POSTGRES_USER: ${POSTGRES_USER:-app_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Runs schema.sql automatically on first initialisation (migrations)
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      # Storage backups ignored by the db container except for the backup job
+      - ./storage/backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app_user} -d ${POSTGRES_DB:-secure_files}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sfs-network
+
+  # --------------------------------------------------------------------------
+  # Backend API - Node.js / Express (Azin's code; Dockerfile is DevOps scaffold)
+  # Starts only with: docker compose --profile full up -d
+  # --------------------------------------------------------------------------
+  backend:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: sfs-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Backend reaches the DB through the compose network, not localhost
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-secure_files}
+      STORAGE_PATH: /app/storage
+      NODE_ENV: ${NODE_ENV:-development}
+    volumes:
+      # Encrypted storage shared with the host (never served by nginx)
+      - ./storage:/app/storage
+    ports:
+      - "${PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sfs-network
+
+  # --------------------------------------------------------------------------
+  # Frontend - React / Vite (Haroon's code; Dockerfile is DevOps scaffold)
+  # Starts only with: docker compose --profile full up -d
+  # --------------------------------------------------------------------------
+  frontend:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: sfs-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+    networks:
+      - sfs-network
+
+  # --------------------------------------------------------------------------
+  # Production reverse proxy / HTTPS terminator (see docs/DEPLOYMENT.md)
+  # Starts only with: docker compose --profile prod up -d
+  # --------------------------------------------------------------------------
+  nginx:
+    profiles: ["prod"]
+    image: nginx:1.27-alpine
+    container_name: sfs-nginx
+    restart: unless-stopped
+    environment:
+      NGINX_SERVER_NAME: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - sfs-certbot:/etc/letsencrypt
+      - sfs-certbot-www:/var/www/certbot
+    command: /bin/sh -c "envsubst '$$NGINX_SERVER_NAME' < /etc/nginx/nginx.conf > /tmp/nginx.conf && exec nginx -c /tmp/nginx.conf -g 'daemon off;'"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - sfs-network
+
+volumes:
+  db-data:
+  sfs-certbot:
+  sfs-certbot-www:
+
+networks:
+  sfs-network:
+    driver: bridge
