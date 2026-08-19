@@ -1,0 +1,21 @@
+{
+  "name": "secure-file-sharing-security",
+  "version": "1.0.0",
+  "description": "Reusable security module (encryption, hashing, tokens, access control) for the Secure File Sharing Platform. Zero runtime dependencies: built entirely on Node.js crypto/OpenSSL.",
+  "type": "module",
+  "main": "src/security/index.js",
+  "exports": {
+    ".": "./src/security/index.js"
+  },
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\"",
+    "demo": "node examples/fullDemo.mjs",
+    "server": "node examples/securityServer.mjs",
+    "security:test": "bash scripts/security-test.sh"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
