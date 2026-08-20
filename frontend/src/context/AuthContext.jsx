@@ -36,17 +36,18 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (payload) => {
     const response = await loginUser(payload)
-    const currentUser = response?.user || response
-    setUser(currentUser)
-    setAuthError('')
+    await getCurrentSession()
     return response
   }
 
   const register = async (payload) => {
     const response = await registerUser(payload)
-    const currentUser = response?.user || response
-    setUser(currentUser)
-    setAuthError('')
+    try {
+      await loginUser({ email: payload.email, password: payload.password })
+    } catch {
+      // If auto-login fails, keep the registered user state; the user can sign in again.
+    }
+    await getCurrentSession()
     return response
   }
 

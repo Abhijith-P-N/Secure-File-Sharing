@@ -6,8 +6,13 @@ export const createShare = async (payload) => {
 }
 
 export const getShareByToken = async (token) => {
-  const response = await api.get(`/api/shares/${token}`)
-  return response.data
+  const response = await api.get(`/api/shares/${token}`, { __skipAuth: true })
+  return response.data?.share || response.data
+}
+
+export const listShares = async (fileId) => {
+  const response = await api.get('/api/shares', { params: fileId ? { fileId } : undefined })
+  return response.data?.shares || []
 }
 
 export const revokeShare = async (id) => {

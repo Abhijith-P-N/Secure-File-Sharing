@@ -1,20 +1,19 @@
 import axios from 'axios'
+import {
+  getStoredToken,
+  getStoredRefreshToken,
+  setTokens,
+  clearTokens,
+  refreshSession,
+} from './authService'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 })
-
-const getStoredToken = () => {
-  try {
-    return localStorage.getItem('auth_token')
-  } catch {
-    return null
-  }
-}
 
 api.interceptors.request.use((config) => {
   const token = getStoredToken()
@@ -66,20 +65,52 @@ export const normalizeApiError = (error) => {
   }
 }
 
+// Single-flight refresh: parallel 401s share one refresh call.
+let refreshPromise = null
+
+async function tryRefreshAccessToken() {
+  if (!getStoredRefreshToken()) return null
+
+  if (!refreshPromise) {
+    refreshPromise = refreshSession()
+      .catch(() => null)
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+  return refreshPromise
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error?.response?.status === 401) {
-      try {
-        localStorage.removeItem('auth_token')
-      } catch {
-        // Ignore storage errors
+  async (error) => {
+    const original = error?.config
+    const isAuthFailure = error?.response?.status === 401
+
+    if (isAuthFailure && original && !original.__skipAuth && !original._retried) {
+      const newToken = await tryRefreshAccessToken()
+
+      if (newToken) {
+        original._retried = true
+        original.headers = {
+          ...original.headers,
+          Authorization: `Bearer ${newToken}`,
+        }
+        return api(original)
       }
     }
+
+    if (isAuthFailure && !original?.__skipAuth) {
+      clearTokens()
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
+      }
+    }
+
     const normalized = normalizeApiError(error)
     return Promise.reject(normalized)
   },
 )
 
+export { setTokens, clearTokens }
 export default api
-

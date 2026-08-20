@@ -45,16 +45,16 @@ services:
   backend:
     profiles: ["full"]
     build:
-      context: .
-      dockerfile: docker/backend/Dockerfile
+      context: ..
+      dockerfile: database1/docker/backend/Dockerfile
     container_name: sfs-backend
     restart: unless-stopped
     env_file:
-      - .env
+      - ../.env
     environment:
       # Backend reaches the DB through the compose network, not localhost
       DATABASE_URL: postgresql://${POSTGRES_USER:-app_user}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-secure_files}
-      STORAGE_PATH: /app/storage
+      UPLOAD_DIR: /app/storage
       NODE_ENV: ${NODE_ENV:-development}
     volumes:
       # Encrypted storage shared with the host (never served by nginx)
@@ -64,6 +64,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health/live >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - sfs-network
 
@@ -74,12 +80,12 @@ services:
   frontend:
     profiles: ["full"]
     build:
-      context: .
-      dockerfile: docker/frontend/Dockerfile
+      context: ..
+      dockerfile: database1/docker/frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     container_name: sfs-frontend
     restart: unless-stopped
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     depends_on:

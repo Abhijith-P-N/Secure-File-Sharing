@@ -31,7 +31,7 @@ cp .env.example .env
 # then edit .env - dev defaults are safe for local; production needs real secrets
 ```
 
-Key values to set even locally: `JWT_SECRET`, `ENCRYPTION_KEY` (see
+Key values to set even locally: `JWT_SECRET`, `FILE_ENCRYPTION_KEY` (see
 `.env.example` comments for `openssl` one-liners).
 
 ## 3. Start the database
@@ -43,7 +43,17 @@ docker compose ps             # verify healthy
 
 The schema (`database/schema.sql`) applies automatically on first boot.
 
-Verify:
+**No Docker/Postgres installed?** The backend can run a real bundled
+PostgreSQL 18 (no root needed) for local development:
+
+```bash
+cd secure-file-backend
+npm run db:local              # real Postgres on :5432, data in .localdb/ (persistent)
+```
+
+Keep that terminal open, then continue with step 4 below.
+
+Verify a compose database:
 
 ```bash
 docker compose exec db psql -U app_user -d secure_files -c '\dt'
@@ -52,14 +62,22 @@ docker compose exec db psql -U app_user -d secure_files -c '\dt'
 ## 4. Start the backend
 
 ```bash
-# via Docker (after backend/ exists)
+# via Docker (after backend exists)
 docker compose --profile full up -d --build backend
 
 # OR locally (dev mode)
-cd backend
+cd secure-file-backend
 npm install
 cp ../.env .env   # ensure DATABASE_URL uses localhost for local runs
 npm run dev
+```
+
+Seed an admin account (needed for the Admin dashboard):
+
+```bash
+cd secure-file-backend
+npm run seed:admin
+# defaults: admin@secure-share.local / ChangeMe_Admin_2026 (override via ADMIN_EMAIL/ADMIN_PASSWORD in .env)
 ```
 
 ## 5. Start the frontend
@@ -92,12 +110,10 @@ apply it manually (no ORM migration tool is assumed - coordinate with Azin).
 
 ## 7. Run tests
 
-There is no shared test runner yet; per-member suites will live beside each
-module. Suggested commands once they exist:
-
 ```bash
-cd backend  && npm test
-cd frontend && npm test
+cd secure-file-backend && npm test          # unit + full API integration (pg-mem)
+cd frontend             && npm run build       # verify the production build
+cd security             && npm test          # crypto/security module suite
 ```
 
 Infra validation available now:

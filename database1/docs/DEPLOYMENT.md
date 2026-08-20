@@ -42,10 +42,10 @@ The proxy redirects HTTP → HTTPS and renews via ACME on the
 
 - `DATABASE_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD` - DB access
 - `JWT_SECRET` - `openssl rand -hex 64`
-- `ENCRYPTION_KEY` - `openssl rand -hex 32` (AES-256 key), `ENCRYPTION_KEY_ID`
+- `FILE_ENCRYPTION_KEY` - `openssl rand -hex 32` (AES-256 key)
 - `DOMAIN` / `NGINX_SERVER_NAME` - HTTPS hostname
 - `CORS_ORIGIN` / `FRONTEND_URL` - must match the frontend origin exactly
-- `STORAGE_PATH`, `MAX_FILE_SIZE`
+- `UPLOAD_DIR`, `MAX_FILE_SIZE_MB`
 
 In production, prefer a secret manager (e.g. Docker secrets / Vault) over a
 plain `.env`.
@@ -64,11 +64,18 @@ plain `.env`.
 ## Production logging
 
 Backend and nginx logs should go to stdout/stderr and be captured by the
-host or a log aggregator (journald / Loki / CloudWatch). Never log:
+host or a log aggregator (journald / Loki / CloudWatch). Backend logs are
+structured JSON (one object per line) with a `requestId`, method, path,
+status and duration. Health endpoints:
+
+- `/health` + `/health/live` - liveness (200 when up)
+- `/health/ready` - readiness (pings the DB; 503 until healthy)
+
+Never log:
 
 - passwords (or password hashes)
 - JWT secrets / tokens
-- encryption keys (`ENCRYPTION_KEY`) or key IDs in plaintext context
+- encryption keys (`FILE_ENCRYPTION_KEY`) or key IDs in plaintext context
 - file contents or decrypted payloads
 - full `.env` values
 
@@ -77,14 +84,16 @@ host or a log aggregator (journald / Loki / CloudWatch). Never log:
 | Event                    | Source                  | Alert |
 |--------------------------|-------------------------|-------|
 | Server errors (5xx)      | backend log / nginx error log | yes |
-| Failed authentication    | access_logs: LOGIN_FAILED, SHARE_ACCESS_FAILED | yes |
+| Failed authentication    | access_logs: LOGIN_FAILURE, FAILED_SHARE_PASSWORD | yes |
+| Session/refresh misuse    | access_logs: REFRESH_INVALID, REFRESH_REVOKED, REFRESH_EXPIRED | yes |
 | Storage errors           | backend storage logger (I/O, checksum mismatch) | yes |
 | Database errors          | db container logs, connection failures | yes |
-| Security events          | access_logs: UNAUTHORIZED_ACCESS, EXPIRED_LINK, REVOKED_LINK, RATE_LIMITED | yes |
+| Security events          | access_logs: UNAUTHORIZED_FILE_ACCESS, EXPIRED_SHARE_ACCESS, REVOKED_SHARE_ACCESS | yes |
 
-Map: query `access_logs` for `result = 'FAILURE'/'DENIED'` high-frequency
-spikes, tail nginx `error.log` for 5xx, and watch the db container's health
-(`pg_isready` healthcheck already configured in compose).
+Map: query `access_logs` for `success = false` (or high-frequency spikes of
+`FAILED_*` / `UNAUTHORIZED_*` actions), tail nginx `error.log` for 5xx, and
+watch the db container's health (`pg_isready` healthcheck already configured
+in compose).
 
 A lightweight option for the team: a cron that greps the last hour of logs
 for 5xx / `UNAUTHORIZED` spikes and emails/pings a webhook. Keep it simple -

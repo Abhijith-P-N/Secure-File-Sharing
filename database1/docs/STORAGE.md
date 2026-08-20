@@ -15,6 +15,12 @@ storage/
 (`750`, owner rwx / group r-x / other none). Run it before first use:
 `STORAGE_PATH=./storage ./scripts/init_storage.sh`
 
+> Note: the **concrete** backend implementation stores encrypted blobs in
+> `UPLOAD_DIR` (default `secure-file-backend/uploads`) as `<uuid>.bin` files.
+> The `storage/encrypted` tree below is the same idea - a private, encrypted,
+> never-served volume - wired into the Docker deployment via `UPLOAD_DIR`. The
+> security rules here apply to that directory too.
+
 ## Key rules
 
 1. **Original filenames are metadata only.** Never used as physical storage
@@ -51,9 +57,20 @@ with `path.join(STORAGE_PATH, 'encrypted', stored_name)` against a stored,
 validated `stored_name`, and refuse any name that resolves outside
 `encrypted/`.
 
-## Encryption metadata (coordination point with Adhil)
+## Encrypted blob layout (coordination point with Adhil)
 
-`files.encryption_metadata` holds the per-file nonce/IV, auth tag,
-algorithm name and `key_id`. The actual `ENCRYPTION_KEY` lives only in the
-environment (`.env`, secret manager in prod) - never on disk beside the
-blob and never in the DB. See Adhil's crypto design.
+Each stored blob is produced by `secure-file-backend/src/services/security.service.js`
+and has this header:
+
+```
+[12-byte IV][16-byte GCM auth tag][AES-256-GCM ciphertext]
+```
+
+- Nonce/IV + auth tag travel with the blob; there is no
+  `files.encryption_metadata` column anymore.
+- The key (`FILE_ENCRYPTION_KEY`, a 32-byte value) lives only in the
+  environment (`.env`, secret manager in prod) - never on disk beside the
+  blob and never in the DB.
+- `files.sha256` stores the SHA-256 of the **plaintext**; it is recomputed
+  after decryption on every download and compared before bytes are sent
+  (integrity verification).

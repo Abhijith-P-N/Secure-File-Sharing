@@ -6,8 +6,9 @@ Owner: Abhijith (Database, Storage & DevOps)
 
 1. **PostgreSQL database** - logical dump via `pg_dump` (consistent snapshot
    of all tables: users, files, shares, access_logs).
-2. **Encrypted storage** - `tar.gz` archive of `storage/encrypted`. Because
-   the blobs are already encrypted, the archive is safe to move off-host.
+2. **Encrypted storage** - `tar.gz` archive of the backend upload directory
+   (`UPLOAD_DIR`, default `secure-file-backend/uploads`). Because the blobs
+   are already encrypted, the archive is safe to move off-host.
 
 Both are produced together so metadata and blobs stay in lockstep.
 
@@ -64,6 +65,6 @@ Cron example (production host):
 
 - Backup files inherit restrictive permissions (`750` dirs).
 - The DB dump contains **hashed passwords only** - no plaintext, no keys.
-- `ENCRYPTION_KEY`/`JWT_SECRET` are NOT backed up - they must be kept
+- `FILE_ENCRYPTION_KEY`/`JWT_SECRET` are NOT backed up - they must be kept
   separately (secret manager / vault) or recovery cannot decrypt blobs.
 - Test restore at least once before the demo (Day 21 requirement).

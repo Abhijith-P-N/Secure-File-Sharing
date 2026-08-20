@@ -36,7 +36,8 @@ export default function SharePage() {
 
   const handleDownload = async (e) => {
     e?.preventDefault()
-    if (share?.passwordProtected && !password.trim()) {
+    const passwordRequired = share?.passwordProtected || share?.passwordRequired
+    if (passwordRequired && !password.trim()) {
       setDownloadError('Please enter the password to download this file.')
       return
     }
@@ -54,9 +55,7 @@ export default function SharePage() {
       anchor.href = url
       anchor.download =
         share?.fileName ||
-        share?.filename ||
         share?.file?.name ||
-        share?.file?.filename ||
         'downloaded-file'
       anchor.click()
       URL.revokeObjectURL(url)
@@ -76,8 +75,11 @@ export default function SharePage() {
     )
   }
 
-  const fileName = share?.fileName || share?.filename || share?.file?.name || share?.file?.filename || 'Protected file'
-  const fileSize = share?.fileSize || share?.file?.size ? formatBytes(share?.fileSize || share?.file?.size) : '—'
+  const passwordProtected = share?.passwordProtected || share?.passwordRequired
+  const fileName = share?.fileName || share?.file?.name || 'Protected file'
+  const fileSizeValue = share?.fileSize ?? share?.file?.size
+  const fileSize = fileSizeValue ? formatBytes(fileSizeValue) : '—'
+  const downloads = share?.downloads ?? share?.downloadCount ?? 0
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
@@ -88,7 +90,7 @@ export default function SharePage() {
             <h1 className="mt-2 text-3xl font-semibold text-white">{fileName}</h1>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-200">
-            {share?.passwordProtected ? 'Password protected' : 'Open share'}
+            {passwordProtected ? 'Password protected' : 'Open share'}
           </div>
         </div>
 
@@ -103,12 +105,12 @@ export default function SharePage() {
             <InfoLine label="File size" value={fileSize} />
             <InfoLine label="Owner" value={share?.owner || share?.creator?.name || 'Shared sender'} />
             <InfoLine label="Expiration" value={share?.expiresAt ? formatDate(share.expiresAt) : share?.expiration || 'No expiration'} />
-            <InfoLine label="Download limit" value={share?.maxDownloads ? `${share.downloads || 0} / ${share.maxDownloads}` : 'Unlimited'} />
+            <InfoLine label="Download limit" value={share?.maxDownloads ? `${downloads} / ${share.maxDownloads}` : 'Unlimited'} />
             <InfoLine label="Security" value={share?.integrityStatus || 'Integrity verified'} />
           </div>
 
           <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/50 p-5">
-            {share?.passwordProtected ? (
+            {passwordProtected ? (
               <div>
                 <label htmlFor="share-password" className="mb-2 block text-sm font-medium text-slate-200">
                   Password required

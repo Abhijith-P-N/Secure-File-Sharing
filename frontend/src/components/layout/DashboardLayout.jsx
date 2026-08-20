@@ -20,13 +20,16 @@ const navItems = [
   { label: 'Upload', to: '/upload', icon: UploadCloud },
   { label: 'Security Logs', to: '/logs', icon: Shield },
   { label: 'Profile', to: '/profile', icon: UserCircle2 },
-  { label: 'Admin', to: '/admin', icon: Users },
+  { label: 'Admin', to: '/admin', icon: Users, adminOnly: true },
 ]
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+
+  const isAdmin = user?.role === 'admin'
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin)
 
   const handleLogout = async () => {
     await logout()
@@ -50,7 +53,7 @@ export default function DashboardLayout() {
             </Link>
 
             <nav className="mt-8 space-y-1.5">
-              {navItems.map(({ label, to, icon: Icon }) => (
+              {visibleNavItems.map(({ label, to, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -164,7 +167,7 @@ export default function DashboardLayout() {
               </div>
 
               <nav className="mt-8 space-y-1.5">
-                {navItems.map(({ label, to, icon: Icon }) => (
+                {visibleNavItems.map(({ label, to, icon: Icon }) => (
                   <NavLink
                     key={to}
                     to={to}
