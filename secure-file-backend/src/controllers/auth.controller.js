@@ -102,9 +102,9 @@ export async function register(req, res) {
 }
 
 export async function login(req, res) {
-  const { email, password } = req.body;
+  const { email, password, twofaToken } = req.body;
   const { rows } = await query(
-    `SELECT id,email,password_hash,role,name FROM users WHERE email=$1`,
+    `SELECT id,email,password_hash,role,name,totp_enabled,totp_secret FROM users WHERE email=$1`,
     [email.toLowerCase()]
   );
   const user = rows[0];
@@ -119,6 +119,33 @@ export async function login(req, res) {
   });
 
   if (!valid) return fail(res, 401, "Invalid email or password");
+
+  // Check if 2FA is enabled
+  if (user.totp_enabled) {
+    if (!twofaToken) {
+      return ok(res, { requires2FA: true, userId: user.id });
+    }
+
+    const { authenticator } = await import("otplib");
+    const isValid = authenticator.check(twofaToken, user.totp_secret);
+    if (!isValid) {
+      await securityLog({
+        userId: user.id,
+        action: "2FA_LOGIN_FAILURE",
+        success: false,
+        req,
+        details: { email: email.toLowerCase() }
+      });
+      return fail(res, 401, "Invalid 2FA token");
+    }
+
+    await securityLog({
+      userId: user.id,
+      action: "2FA_LOGIN_SUCCESS",
+      success: true,
+      req
+    });
+  }
 
   const refreshToken = generateRefreshToken();
   await storeRefreshToken({ userId: user.id, token: refreshToken, req });

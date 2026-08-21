@@ -5,7 +5,8 @@ import { validate } from "../middleware/validate.js";
 import { shareLimiter } from "../middleware/rateLimit.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
-  createShare, listShares, accessShare, downloadShare, revokeShare, deleteShare
+  createShare, listShares, accessShare, downloadShare, revokeShare, deleteShare,
+  requestAccess, verifyAccess
 } from "../controllers/share.controller.js";
 
 const router = Router();
@@ -20,18 +21,22 @@ const createSchema = z.object({
   maxDownloads: z.union([
     z.number().int().min(1).max(100000),
     z.literal("unlimited")
-  ]).optional()
+  ]).optional(),
+  allowedEmail: z.string().max(2048).optional()
 });
 
 const idParam = z.object({ id: z.string().uuid() });
-const tokenParam = z.object({ token: z.string().min(16).max(256) });
+const shareParam = z.object({ token: z.string().min(10).max(256) });
 
 router.get("/", requireAuth, asyncHandler(listShares));
 router.post("/", requireAuth, validate(createSchema), asyncHandler(createShare));
 
-router.get("/:token", validate(tokenParam, "params"), shareLimiter, asyncHandler(accessShare));
-router.get("/:token/download", validate(tokenParam, "params"), shareLimiter, asyncHandler(downloadShare));
-router.post("/:token/download", validate(tokenParam, "params"), shareLimiter, asyncHandler(downloadShare));
+router.get("/:token", validate(shareParam, "params"), shareLimiter, asyncHandler(accessShare));
+router.get("/:token/download", validate(shareParam, "params"), shareLimiter, asyncHandler(downloadShare));
+router.post("/:token/download", validate(shareParam, "params"), shareLimiter, asyncHandler(downloadShare));
+
+router.post("/:token/request-access", validate(shareParam, "params"), shareLimiter, asyncHandler(requestAccess));
+router.post("/:token/verify-access", validate(shareParam, "params"), shareLimiter, asyncHandler(verifyAccess));
 
 router.delete("/:id", requireAuth, validate(idParam, "params"), asyncHandler(deleteShare));
 router.post("/:id/revoke", requireAuth, validate(idParam, "params"), asyncHandler(revokeShare));

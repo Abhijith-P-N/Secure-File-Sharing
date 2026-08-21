@@ -44,7 +44,7 @@ export async function saveEncryptedFile({ ownerId, file }) {
 export async function getOwnedFile(id, userId) {
   const { rows } = await query(
     `SELECT id, owner_id, original_name, stored_name, mime_type, size_bytes, sha256, created_at
-     FROM files WHERE id=$1 AND owner_id=$2`,
+     FROM files WHERE id=$1 AND owner_id=$2 AND deleted_at IS NULL`,
     [id, userId]
   );
   return rows[0] || null;
@@ -53,7 +53,7 @@ export async function getOwnedFile(id, userId) {
 export async function getFileById(id) {
   const { rows } = await query(
     `SELECT id, owner_id, original_name, stored_name, mime_type, size_bytes, sha256, created_at
-     FROM files WHERE id=$1`,
+     FROM files WHERE id=$1 AND deleted_at IS NULL`,
     [id]
   );
   return rows[0] || null;
@@ -72,7 +72,9 @@ export async function deleteOwnedFile(id, userId) {
   const file = await getOwnedFile(id, userId);
   if (!file) return null;
 
-  await fs.rm(storedPath(file.stored_name), { force: true });
-  await query(`DELETE FROM files WHERE id=$1 AND owner_id=$2`, [id, userId]);
+  await query(
+    `UPDATE files SET deleted_at = NOW() WHERE id=$1 AND owner_id=$2 AND deleted_at IS NULL`,
+    [id, userId]
+  );
   return file;
 }

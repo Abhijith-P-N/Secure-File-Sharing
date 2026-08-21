@@ -44,6 +44,8 @@ export function serializeShare(share) {
     sha256: share.sha256 || null,
     passwordProtected,
     passwordRequired: passwordProtected,
+    allowedEmail: share.allowed_email || null,
+    emailProtected: Boolean(share.allowed_email),
     expiresAt: share.expires_at || share.expiresAt || null,
     maxDownloads: share.max_downloads ?? share.maxDownloads ?? null,
     downloads,

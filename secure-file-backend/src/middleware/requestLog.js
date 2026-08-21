@@ -1,10 +1,15 @@
 import crypto from "node:crypto";
+import { createLogger } from "../utils/logger.js";
 
 export function requestId(req, res, next) {
   const incoming = req.get("x-request-id");
   const id = incoming && incoming.length <= 100 ? incoming : crypto.randomUUID();
   req.id = id;
   res.setHeader("X-Request-Id", id);
+  
+  // Create a child logger bound to this request's correlation ID
+  req.log = createLogger({ requestId: id });
+  
   next();
 }
 
@@ -12,8 +17,7 @@ export function requestLogger(req, res, next) {
   const start = process.hrtime.bigint();
   res.on("finish", () => {
     const durationMs = Number(process.hrtime.bigint() - start) / 1e6;
-    const line = {
-      requestId: req.id,
+    const context = {
       method: req.method,
       path: req.originalUrl,
       status: res.statusCode,
@@ -21,11 +25,9 @@ export function requestLogger(req, res, next) {
       ip: req.ip
     };
     if (res.statusCode >= 500) {
-      // eslint-disable-next-line no-console
-      console.error(JSON.stringify({ ts: new Date().toISOString(), level: "error", msg: "request error", ...line }));
+      req.log.error("request error", context);
     } else {
-      // eslint-disable-next-line no-console
-      console.log(JSON.stringify({ ts: new Date().toISOString(), level: "info", msg: "request", ...line }));
+      req.log.info("request", context);
     }
   });
   next();

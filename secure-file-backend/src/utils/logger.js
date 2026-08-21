@@ -13,8 +13,18 @@ function write(level, message, extra = {}) {
   }
 }
 
-export const logger = {
-  info: (message, extra) => write("info", message, extra),
-  warn: (message, extra) => write("warn", message, extra),
-  error: (message, extra) => write("error", message, extra)
-};
+// Child logger with bound context (e.g., requestId, userId)
+export function createLogger(context = {}) {
+  const bound = (level, message, extra = {}) => {
+    write(level, message, { ...context, ...extra });
+  };
+
+  return {
+    info: (message, extra) => bound("info", message, extra),
+    warn: (message, extra) => bound("warn", message, extra),
+    error: (message, extra) => bound("error", message, extra),
+    child: (additionalContext) => createLogger({ ...context, ...additionalContext }),
+  };
+}
+
+export const logger = createLogger();

@@ -26,11 +26,34 @@ export async function uploadFile(req, res) {
   return ok(res, { file: serializeFile(file) }, 201);
 }
 
+export async function searchFiles(req, res) {
+  const { q } = req.query;
+  if (!q || q.trim().length === 0) {
+    return fail(res, 400, "Search query is required");
+  }
+
+  const searchTerm = q.trim();
+  
+  const { rows } = await query(
+    `SELECT id, owner_id, original_name, mime_type, size_bytes, sha256, created_at,
+            ts_rank(search_vector, plainto_tsquery('english', $2)) AS rank
+     FROM files
+     WHERE owner_id=$1 
+       AND deleted_at IS NULL
+       AND search_vector @@ plainto_tsquery('english', $2)
+     ORDER BY rank DESC, created_at DESC
+     LIMIT 50`,
+    [req.user.id, searchTerm]
+  );
+
+  return ok(res, { files: rows.map(serializeFile), query: searchTerm });
+}
+
 export async function listFiles(req, res) {
   const { rows } = await query(
     `SELECT id, owner_id, original_name, mime_type, size_bytes, sha256, created_at
      FROM files
-     WHERE owner_id=$1
+     WHERE owner_id=$1 AND deleted_at IS NULL
      ORDER BY created_at DESC`,
     [req.user.id]
   );
@@ -38,7 +61,7 @@ export async function listFiles(req, res) {
   const { rows: counts } = await query(
     `SELECT s.file_id, COUNT(*)::int AS share_count
      FROM shares s JOIN files f ON f.id = s.file_id
-     WHERE f.owner_id=$1
+     WHERE f.owner_id=$1 AND s.deleted_at IS NULL
      GROUP BY s.file_id`,
     [req.user.id]
   );

@@ -25,3 +25,28 @@ export async function securityLog({
     ]
   );
 }
+
+export async function adminAuditLog({
+  adminId,
+  action,
+  targetType,
+  targetId = null,
+  details = {},
+  req
+}) {
+  await query(
+    `INSERT INTO access_logs
+      (user_id, action, resource_type, resource_id, success, ip, user_agent, details)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [
+      adminId,
+      `admin_${action}`,
+      targetType,
+      targetId,
+      true,
+      req?.ip || null,
+      req?.get("user-agent") || null,
+      JSON.stringify({ ...details, adminAction: true })
+    ]
+  );
+}
