@@ -93,25 +93,11 @@ export const getCurrentUser = async () => {
 }
 
 export const forgotPassword = async (payload) => {
-  try {
-    const response = await api.post('/api/auth/forgot-password', payload)
-    return response.data
-  } catch (error) {
-    if (error?.status === 404 || error?.status === 0) {
-      return { success: true, message: 'Password reset request received.' }
-    }
-    throw error
-  }
+  const response = await api.post('/api/auth/forgot-password', payload)
+  return response.data
 }
 
 export const resetPassword = async (payload) => {
-  try {
-    const response = await api.post('/api/auth/reset-password', payload)
-    return response.data
-  } catch (error) {
-    if (error?.status === 404 || error?.status === 0) {
-      return { success: true, message: 'Password has been reset successfully.' }
-    }
-    throw error
-  }
+  const response = await api.post('/api/auth/reset-password', payload)
+  return response.data
 }

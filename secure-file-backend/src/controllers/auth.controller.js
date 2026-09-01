@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { query } from "../config/db.js";
 import { config } from "../config/env.js";
 import { securityLog } from "../services/log.service.js";
+import { sendPasswordResetCode } from "../services/email.service.js";
 import { serializeUser } from "../utils/serialize.js";
 import { sha256 } from "../utils/crypto.js";
 import { fail, ok } from "../utils/http.js";
@@ -211,4 +212,146 @@ export async function me(req, res) {
   );
   if (!rows[0]) return fail(res, 404, "User not found");
   return ok(res, { user: serializeUser(rows[0]) });
+}
+
+// --- Forgot password (OTP) flow ---------------------------------------------
+
+const OTP_LENGTH = 6;
+const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_MAX_ATTEMPTS = 5;
+
+function generateOtp() {
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function validEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Step 1: Request an OTP for a registered email address.
+// Responds identically whether or not the account exists to avoid user enumeration.
+export async function forgotPassword(req, res) {
+  const email = normalizeEmail(req.body.email);
+  if (!validEmail(email)) {
+    return fail(res, 400, "Valid email address is required");
+  }
+
+  const { rows } = await query(`SELECT id FROM users WHERE email = $1`, [email]);
+  if (rows[0]) {
+    // Invalidate any previous unused OTPs for this email.
+    await query(
+      `UPDATE password_reset_otps SET used_at = NOW()
+       WHERE email = $1 AND used_at IS NULL`,
+      [email]
+    );
+
+    const code = generateOtp();
+    const codeHash = await bcrypt.hash(code, 10);
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
+
+    await query(
+      `INSERT INTO password_reset_otps (email, code_hash, expires_at)
+       VALUES ($1, $2, $3)`,
+      [email, codeHash, expiresAt]
+    );
+
+    await securityLog({
+      userId: rows[0].id,
+      action: "PASSWORD_RESET_REQUESTED",
+      success: true,
+      req
+    });
+
+    await sendPasswordResetCode(email, code);
+  } else {
+    await securityLog({
+      userId: null,
+      action: "PASSWORD_RESET_ATTEMPT",
+      success: false,
+      req,
+      details: { email }
+    });
+  }
+
+  // Always return the same response, regardless of whether the account exists.
+  return ok(res, {
+    message: "If that email is registered, a password reset code has been sent."
+  });
+}
+
+// Step 2: Verify the OTP and set a new password.
+export async function resetPasswordWithOtp(req, res) {
+  const email = normalizeEmail(req.body.email);
+  const code = String(req.body.code || "").trim();
+  const newPassword = String(req.body.newPassword || "");
+
+  if (!validEmail(email) || code.length !== OTP_LENGTH || newPassword.length < 8) {
+    return fail(res, 400, "A valid email, 6-digit code, and password of at least 8 characters are required");
+  }
+
+  // Fetch the most recent unused, unexpired OTP for this email.
+  const { rows } = await query(
+    `SELECT id, code_hash, expires_at, used_at, attempts
+     FROM password_reset_otps
+     WHERE email = $1 AND used_at IS NULL AND expires_at > NOW()
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [email]
+  );
+
+  const record = rows[0];
+  if (!record) {
+    await securityLog({ userId: null, action: "PASSWORD_RESET_FAILED", success: false, req, details: { email, reason: "no_valid_otp" } });
+    return fail(res, 400, "This reset code is invalid or has expired. Please request a new one.");
+  }
+
+  const codeMatches = await bcrypt.compare(code, record.code_hash);
+  if (!codeMatches) {
+    const nextAttempts = record.attempts + 1;
+    if (nextAttempts >= OTP_MAX_ATTEMPTS) {
+      await query(`UPDATE password_reset_otps SET used_at = NOW(), attempts = $2 WHERE id = $1`, [
+        record.id, nextAttempts
+      ]);
+      await securityLog({ userId: null, action: "PASSWORD_RESET_OTP_LOCKED", success: false, req, details: { email } });
+      return fail(res, 429, "Too many incorrect attempts. Please request a new code.");
+    }
+    await query(`UPDATE password_reset_otps SET attempts = $2 WHERE id = $1`, [
+      record.id, nextAttempts
+    ]);
+    await securityLog({ userId: null, action: "PASSWORD_RESET_OTP_MISMATCH", success: false, req });
+    return fail(res, 400, "Incorrect code. Please try again.");
+  }
+
+  // Mark the OTP as used immediately (single-use).
+  await query(`UPDATE password_reset_otps SET used_at = NOW() WHERE id = $1`, [record.id]);
+
+  // Update the user's password and revoke all their refresh tokens.
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const { rows: userRows } = await query(
+    `UPDATE users SET password_hash = $1 WHERE email = $2
+     RETURNING id`,
+    [passwordHash, email]
+  );
+
+  if (!userRows[0]) {
+    return fail(res, 404, "Account not found");
+  }
+
+  await query(
+    `UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`,
+    [userRows[0].id]
+  );
+
+  await securityLog({
+    userId: userRows[0].id,
+    action: "PASSWORD_RESET_SUCCESS",
+    success: true,
+    req
+  });
+
+  return ok(res, { message: "Password has been reset successfully." });
 }

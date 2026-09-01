@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Download, Share2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Download, Share2, Trash2, Shield } from 'lucide-react'
 import { deleteFile, downloadFile, getFileById } from '../services/fileService'
 import { createShare } from '../services/shareService'
 import { formatBytes, formatDate } from '../utils/formatters'
@@ -33,10 +33,7 @@ export default function FileDetailsPage() {
         setLoading(false)
       }
     }
-
-    if (id) {
-      fetchFile()
-    }
+    if (id) fetchFile()
   }, [id])
 
   const handleDownload = async () => {
@@ -45,9 +42,7 @@ export default function FileDetailsPage() {
     setError('')
     try {
       const response = await downloadFile(file.id || id)
-      const blob = new Blob([response.data], {
-        type: response.headers?.['content-type'] || 'application/octet-stream',
-      })
+      const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/octet-stream' })
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
@@ -67,10 +62,8 @@ export default function FileDetailsPage() {
     setError('')
     try {
       await deleteFile(file.id || id)
-      setSuccessMessage('File deleted successfully. Redirecting to your files...')
-      setTimeout(() => {
-        navigate('/files', { replace: true })
-      }, 1200)
+      setSuccessMessage('File deleted successfully. Redirecting...')
+      setTimeout(() => navigate('/files', { replace: true }), 1200)
     } catch (err) {
       setError(err?.message || 'Delete failed.')
       setDeleting(false)
@@ -78,121 +71,118 @@ export default function FileDetailsPage() {
     }
   }
 
-  const handleShare = async (payload) => {
-    return await createShare(payload)
-  }
+  const handleShare = async (payload) => await createShare(payload)
 
   if (loading) return <Loader label="Loading file details..." />
-  if (error && !file) return <Alert title="Unable to load file" message={error} tone="danger" />
-  if (!file) return <Alert title="No file found" message="The requested file could not be found." tone="warning" />
+  if (error && !file) return <div className="py-16"><Alert title="Unable to load file" message={error} tone="danger" /></div>
+  if (!file) return <div className="py-16"><Alert title="No file found" message="The requested file could not be found." tone="warning" /></div>
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-cyan-300">File details</p>
-          <h1 className="mt-2 text-3xl font-semibold text-white">{file.name || file.filename}</h1>
+          <h1 className="text-[28px] font-semibold text-ink tracking-tight">{file.name || file.filename}</h1>
+          <p className="mt-1 text-[14px] text-muted">File Details</p>
         </div>
         <Link to="/files">
-          <Button variant="secondary" className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back to files
+          <Button variant="secondary" className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" /> Back to Files
           </Button>
         </Link>
       </div>
 
-      {error ? <Alert title="Action error" message={error} tone="danger" /> : null}
+      {error ? <Alert title="Error" message={error} tone="danger" onDismiss={() => setError('')} /> : null}
       {successMessage ? <Alert title="Success" message={successMessage} tone="success" /> : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-          <h2 className="mb-4 text-lg font-semibold text-white">Metadata & Security</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <DetailRow label="File name" value={file.name || file.filename} />
-            <DetailRow label="File size" value={formatBytes(file.size)} />
-            <DetailRow label="Type" value={file.type || file.mimeType || 'Document'} />
-            <DetailRow label="Upload date" value={formatDate(file.uploadedAt || file.createdAt)} />
-            <DetailRow label="Encryption status" value={file.encryptionStatus || 'AES-256 Encrypted'} />
-            <DetailRow label="Integrity status" value={file.integrityStatus || 'SHA-256 Verified'} />
+        {/* Metadata */}
+        <div className="rounded-[12px] border border-border bg-surface p-6">
+          <h2 className="text-[17px] font-semibold text-ink mb-4">File Information</h2>
+          <div className="space-y-3">
+            {[
+              { label: 'File name', value: file.name || file.filename },
+              { label: 'File size', value: formatBytes(file.size) },
+              { label: 'Type', value: file.type || file.mimeType || 'Document' },
+              { label: 'Upload date', value: formatDate(file.uploadedAt || file.createdAt) },
+            ].map((row, i) => (
+              <div key={row.label} className={`flex items-center justify-between py-3 text-[14px] ${i < 3 ? 'border-b border-border' : ''}`}>
+                <span className="text-muted">{row.label}</span>
+                <span className="font-medium text-ink">{row.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <h3 className="mt-6 mb-3 text-[15px] font-semibold text-ink">Security</h3>
+          <div className="space-y-3">
+            {[
+              { label: 'Encryption', value: file.encryptionStatus || 'AES-256 Encrypted' },
+              { label: 'Integrity', value: file.integrityStatus || 'SHA-256 Verified' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-[10px] border border-border bg-bg p-3.5 text-[14px]">
+                <div className="flex items-center gap-2.5">
+                  <Shield className="h-4 w-4 text-success" />
+                  <span className="text-muted">{item.label}</span>
+                </div>
+                <span className="font-medium text-success">{item.value}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-          <h2 className="text-xl font-semibold text-white">File actions</h2>
-          <p className="mt-1 text-xs text-slate-400">Manage access and share securely</p>
+        {/* Actions */}
+        <div className="rounded-[12px] border border-border bg-surface p-6">
+          <h2 className="text-[17px] font-semibold text-ink">Actions</h2>
+          <p className="mt-1 text-[13px] text-muted">Manage access and share securely.</p>
+
           <div className="mt-6 space-y-3">
             <Button
               onClick={handleDownload}
               disabled={downloading || deleting}
-              className="w-full justify-center gap-2"
+              className="w-full justify-center gap-1.5"
             >
               <Download className="h-4 w-4" />
-              {downloading ? 'Downloading...' : 'Download file'}
+              {downloading ? 'Downloading...' : 'Download File'}
             </Button>
             <Button
               variant="secondary"
               onClick={() => setShareModalOpen(true)}
               disabled={deleting}
-              className="w-full justify-center gap-2"
+              className="w-full justify-center gap-1.5"
             >
               <Share2 className="h-4 w-4" />
-              Share file
+              Share File
             </Button>
+
             {confirmDelete ? (
-              <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 space-y-3">
-                <p className="text-xs font-medium text-red-200">
+              <div className="rounded-[10px] border border-danger/20 bg-danger-bg p-4 space-y-3">
+                <p className="text-[13px] font-medium text-danger">
                   Are you sure you want to permanently delete this file?
                 </p>
                 <div className="flex gap-2">
-                  <Button
-                    variant="danger"
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="flex-1 justify-center py-2 text-xs"
-                  >
+                  <Button variant="danger" onClick={handleDelete} disabled={deleting} className="flex-1 justify-center text-[13px]">
                     {deleting ? 'Deleting...' : 'Yes, delete'}
                   </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setConfirmDelete(false)}
-                    disabled={deleting}
-                    className="flex-1 justify-center py-2 text-xs"
-                  >
+                  <Button variant="secondary" onClick={() => setConfirmDelete(false)} disabled={deleting} className="flex-1 justify-center text-[13px]">
                     Cancel
                   </Button>
                 </div>
               </div>
             ) : (
               <Button
-                variant="danger"
+                variant="danger-soft"
                 onClick={() => setConfirmDelete(true)}
                 disabled={deleting}
-                className="w-full justify-center gap-2"
+                className="w-full justify-center gap-1.5"
               >
                 <Trash2 className="h-4 w-4" />
-                Delete file
+                Delete File
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      <ShareModal
-        open={shareModalOpen}
-        file={file}
-        onClose={() => setShareModalOpen(false)}
-        onCreateShare={handleShare}
-      />
+      <ShareModal open={shareModalOpen} file={file} onClose={() => setShareModalOpen(false)} onCreateShare={handleShare} />
     </div>
   )
 }
-
-function DetailRow({ label, value }) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-2 text-sm font-medium text-slate-100">{value}</p>
-    </div>
-  )
-}
-

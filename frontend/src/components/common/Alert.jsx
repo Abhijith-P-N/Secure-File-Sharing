@@ -1,15 +1,43 @@
-export default function Alert({ title, message, tone = 'info' }) {
+import { AlertTriangle, CheckCircle, Info, XCircle } from 'lucide-react'
+
+const icons = {
+  info: Info,
+  success: CheckCircle,
+  danger: XCircle,
+  warning: AlertTriangle,
+}
+
+export default function Alert({ title, message, tone = 'info', onDismiss }) {
   const tones = {
-    info: 'border-cyan-500/30 bg-cyan-500/10 text-cyan-100',
-    success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100',
-    danger: 'border-red-500/30 bg-red-500/10 text-red-100',
-    warning: 'border-amber-500/30 bg-amber-500/10 text-amber-50',
+    info: { bg: 'bg-info-bg', border: 'border-info/15', icon: 'text-info', text: 'text-ink' },
+    success: { bg: 'bg-success-bg', border: 'border-success/15', icon: 'text-success', text: 'text-ink' },
+    danger: { bg: 'bg-danger-bg', border: 'border-danger/15', icon: 'text-danger', text: 'text-ink' },
+    warning: { bg: 'bg-warning-bg', border: 'border-warning/15', icon: 'text-warning', text: 'text-ink' },
   }
 
+  const t = tones[tone] || tones.info
+  const Icon = icons[tone] || icons.info
+
   return (
-    <div className={`rounded-2xl border p-4 ${tones[tone] || tones.info}`} role="alert">
-      {title ? <p className="mb-1 text-sm font-semibold">{title}</p> : null}
-      {message ? <p className="text-sm opacity-90">{message}</p> : null}
+    <div
+      className={`flex items-start gap-3 rounded-[10px] border px-4 py-3.5 ${t.bg} ${t.border}`}
+      role="alert"
+    >
+      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${t.icon}`} />
+      <div className="flex-1 min-w-0">
+        {title ? <p className={`text-sm font-semibold ${t.text}`}>{title}</p> : null}
+        {message ? <p className={`mt-0.5 text-[13px] leading-relaxed text-muted`}>{message}</p> : null}
+      </div>
+      {onDismiss ? (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss alert"
+          className="mt-0.5 shrink-0 text-muted hover:text-ink"
+        >
+          <XCircle className="h-4 w-4" />
+        </button>
+      ) : null}
     </div>
   )
 }

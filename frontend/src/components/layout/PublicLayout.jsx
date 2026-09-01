@@ -1,72 +1,59 @@
 import { useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
-import { LockKeyhole, Menu, ShieldCheck, X } from 'lucide-react'
+import { ShieldCheck, Menu, X, Lock } from 'lucide-react'
 
 export default function PublicLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      <header className="sticky top-0 z-40 border-b border-slate-800/90 bg-slate-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/30">
-              <ShieldCheck className="h-5 w-5" />
+    <div className="min-h-screen bg-bg text-ink flex flex-col">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-primary">
+              <ShieldCheck className="h-[18px] w-[18px] text-white" />
             </div>
-            <div>
-              <p className="text-sm font-bold tracking-[0.2em] text-cyan-300 uppercase">VaultGuard</p>
-            </div>
+            <span className="text-[15px] font-semibold text-ink">VaultGuard</span>
           </Link>
 
-          <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-            <Link to="/" className="transition hover:text-white">Home</Link>
-            <Link to="/login" className="transition hover:text-white">Sign In</Link>
-            <Link to="/register" className="transition hover:text-white">Register</Link>
+          <nav className="hidden items-center gap-8 text-[14px] text-muted md:flex">
+            <Link to="/" className="hover:text-ink transition-colors duration-150">Home</Link>
+            <Link to="/login" className="hover:text-ink transition-colors duration-150">Sign In</Link>
+            <Link to="/register" className="hover:text-ink transition-colors duration-150">Register</Link>
           </nav>
 
           <div className="hidden items-center gap-3 md:flex">
-            <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/75 px-3 py-1.5 text-xs text-slate-300">
-              <LockKeyhole className="h-3.5 w-3.5 text-cyan-300" />
+            <span className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-surface px-3 py-1.5 text-[12px] font-medium text-muted">
+              <Lock className="h-3.5 w-3.5 text-primary" />
               End-to-end protected
-            </div>
-            <Link to="/login" className="rounded-full bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-400 transition">
+            </span>
+            <Link
+              to="/login"
+              className="rounded-[10px] bg-primary px-4 py-2 text-[13px] font-medium text-white hover:bg-primary-hover transition-colors duration-150"
+            >
               Sign in
             </Link>
           </div>
 
-          <div className="flex md:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen((prev) => !prev)}
-              className="rounded-xl border border-slate-800 bg-slate-900 p-2 text-slate-300 hover:text-white"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="rounded-lg border border-border p-2 text-muted hover:text-ink md:hidden"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
 
         {mobileMenuOpen ? (
-          <div className="border-t border-slate-800 bg-slate-950/95 px-4 py-4 md:hidden space-y-3">
-            <Link
-              to="/"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white"
-            >
+          <div className="border-t border-border bg-surface px-4 py-3 md:hidden space-y-1">
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} className="block rounded-[10px] px-3 py-2.5 text-[14px] text-muted hover:bg-surface-hover hover:text-ink">
               Home
             </Link>
-            <Link
-              to="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white"
-            >
+            <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block rounded-[10px] px-3 py-2.5 text-[14px] text-muted hover:bg-surface-hover hover:text-ink">
               Sign In
             </Link>
-            <Link
-              to="/register"
-              onClick={() => setMobileMenuOpen(false)}
-              className="block rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-slate-900 hover:text-white"
-            >
+            <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="block rounded-[10px] px-3 py-2.5 text-[14px] text-muted hover:bg-surface-hover hover:text-ink">
               Register
             </Link>
           </div>
@@ -76,7 +63,13 @@ export default function PublicLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+
+      <footer className="border-t border-border bg-surface">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 flex items-center justify-between text-[12px] text-muted">
+          <span>&copy; {new Date().getFullYear()} VaultGuard. All rights reserved.</span>
+          <span className="flex items-center gap-1.5"><Lock className="h-3 w-3 text-primary" /> Secured with encryption</span>
+        </div>
+      </footer>
     </div>
   )
 }
-

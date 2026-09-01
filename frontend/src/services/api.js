@@ -8,12 +8,25 @@ import {
 } from './authService'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  // Relative by default so nginx (prod) / Vite proxy (dev) route /api to the
+  // backend. Set VITE_API_BASE_URL to point at an absolute API host if needed.
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 })
+
+let csrfToken = null
+
+api.interceptors.response.use((response) => {
+  // Capture CSRF token from response header
+  const token = response.headers['x-csrf-token']
+  if (token) {
+    csrfToken = token
+  }
+  return response
+}, (error) => Promise.reject(error))
 
 api.interceptors.request.use((config) => {
   const token = getStoredToken()
@@ -22,6 +35,19 @@ api.interceptors.request.use((config) => {
     config.headers = {
       ...config.headers,
       Authorization: `Bearer ${token}`,
+    }
+  }
+
+  // Attach CSRF token for non-safe methods
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(config.method?.toUpperCase())) {
+    if (csrfToken) {
+      config.headers['x-csrf-token'] = csrfToken
+    } else {
+      // Fallback: read from cookie
+      const match = document.cookie.split('; ').find((row) => row.startsWith('csrf_token='))
+      if (match) {
+        config.headers['x-csrf-token'] = match.split('=')[1]
+      }
     }
   }
 

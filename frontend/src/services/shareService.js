@@ -25,18 +25,49 @@ export const deleteShare = async (id) => {
   return response.data
 }
 
-export const downloadSharedFile = async (token, password) => {
-  const config = {
-    responseType: 'blob',
-    __skipAuth: true,
+export const requestAccess = async (token, email) => {
+  const response = await api.post(`/api/shares/${token}/request-access`, { email }, { __skipAuth: true })
+  return response.data
+}
+
+export const verifyAccess = async (token, email, code) => {
+  const response = await api.post(`/api/shares/${token}/verify-access`, { email, code }, { __skipAuth: true })
+  return response.data
+}
+
+export const downloadSharedFile = async (token, password, downloadToken) => {
+  const url = `${api.defaults.baseURL || ''}/api/shares/${token}/download`
+
+  const options = {
+    method: password ? 'POST' : 'GET',
+    credentials: 'include',
+    headers: {},
   }
 
-  if (password) {
-    const response = await api.post(`/api/shares/${token}/download`, { password }, config)
-    return response
+  const body = {}
+  if (password) body.password = password
+  if (downloadToken) body.downloadToken = downloadToken
+  if (Object.keys(body).length) {
+    options.method = 'POST'
+    options.headers['Content-Type'] = 'application/json'
+    options.body = JSON.stringify(body)
   }
 
-  const response = await api.get(`/api/shares/${token}/download`, config)
+  const response = await fetch(url, options)
+
+  if (!response.ok) {
+    let message = ''
+    try {
+      const body = await response.json()
+      message = body.error || body.message || ''
+    } catch {
+      // response wasn't JSON
+    }
+    const error = new Error(message || `Request failed with status code ${response.status}`)
+    error.status = response.status
+    throw error
+  }
+
   return response
 }
 

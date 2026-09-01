@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>teamproject-frontend</title>
+    <meta name="description" content="VaultGuard — secure file sharing, encrypted storage, and audit logging for teams." />
+    <title>VaultGuard — Secure File Sharing</title>
+    <script>
+      (function() {
+        // Default to light mode; respect an explicit stored preference only.
+        try {
+          var stored = localStorage.getItem('darkMode');
+          if (stored !== null && JSON.parse(stored)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

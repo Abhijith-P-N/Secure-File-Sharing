@@ -10,6 +10,7 @@ import DashboardPage from './pages/DashboardPage'
 import UploadPage from './pages/UploadPage'
 import FilesPage from './pages/FilesPage'
 import FileDetailsPage from './pages/FileDetailsPage'
+import SharedLinksPage from './pages/SharedLinksPage'
 import LogsPage from './pages/LogsPage'
 import ProfilePage from './pages/ProfilePage'
 import SharePage from './pages/SharePage'
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/files" element={<FilesPage />} />
             <Route path="/files/:id" element={<FileDetailsPage />} />
+            <Route path="/shares" element={<SharedLinksPage />} />
             <Route path="/logs" element={<LogsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/admin" element={<AdminPage />} />

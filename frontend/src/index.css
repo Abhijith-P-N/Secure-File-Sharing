@@ -1,56 +1,198 @@
 @import 'tailwindcss';
 
+/* ============================================================================
+   VaultGuard design system tokens.
+   Light values live on :root (primary theme). Dark values flip on the `.dark`
+   class (set by ThemeContext). Tailwind utilities reference these via
+   `@theme inline` so they resolve at runtime.
+   ============================================================================ */
 :root {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.92);
-  background: #020817;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Backgrounds */
+  --bg: #f7f9fc;
+  --surface: #ffffff;
+  --surface-hover: #f2f4f8;
+  --surface-elevated: #ffffff;
+
+  /* Borders */
+  --line: #e4e7ec;
+  --line-hover: #cdd3dc;
+
+  /* Text */
+  --ink: #101828;
+  --muted: #667085;
+  --muted-dim: #98a2b3;
+
+  /* Brand */
+  --primary: #315ef7;
+  --primary-hover: #2447c8;
+  --primary-soft: #eef2ff;
+  --primary-dark: #243b7a;
+
+  /* Status */
+  --success: #12b76a;
+  --success-bg: #ecfdf3;
+  --warning: #f79009;
+  --warning-bg: #fffaeb;
+  --danger: #f04438;
+  --danger-bg: #fef3f2;
+  --info: #2e90fa;
+  --info-bg: #eff8ff;
+
+  /* Sidebar */
+  --sidebar-bg: #14233b;
+  --sidebar-ink: #94a3b8;
+  --sidebar-active: #315ef7;
+  --sidebar-active-ink: #ffffff;
 }
 
-html {
-  background: #020817;
-  scroll-behavior: smooth;
+.dark {
+  --bg: #0f1420;
+  --surface: #161c29;
+  --surface-hover: #1d2433;
+  --surface-elevated: #1f2838;
+
+  --line: #2a3344;
+  --line-hover: #3a4557;
+
+  --ink: #eef2f7;
+  --muted: #98a2b3;
+  --muted-dim: #667085;
+
+  --primary: #5b7cfa;
+  --primary-hover: #6f8dfb;
+  --primary-soft: #1d2847;
+  --primary-dark: #3f5bc9;
+
+  --success: #2fce7d;
+  --success-bg: #10291d;
+  --warning: #f7a933;
+  --warning-bg: #2b2013;
+  --danger: #f2635b;
+  --danger-bg: #2d1a19;
+  --info: #4aa8ff;
+  --info-bg: #12233a;
+
+  --sidebar-bg: #101624;
+  --sidebar-ink: #8a95a8;
+  --sidebar-active: #315ef7;
+  --sidebar-active-ink: #ffffff;
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(34, 211, 238, 0.14), transparent 28%),
-    linear-gradient(180deg, #020817 0%, #020817 100%);
-  color: #e2e8f0;
+/* Map tokens to Tailwind utilities */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-background: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-border: var(--line);
+  --color-border-hover: var(--line-hover);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-muted-dim: var(--muted-dim);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-dark: var(--primary-dark);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-sidebar: var(--sidebar-bg);
+  --color-sidebar-ink: var(--sidebar-ink);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-ink: var(--sidebar-active-ink);
+
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --radius: 10px;
+
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-card-hover: 0 2px 6px rgba(16, 24, 40, 0.08);
 }
 
-* {
-  box-sizing: border-box;
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--bg);
+    color: var(--ink);
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
-#root {
-  min-height: 100vh;
-}
-
-::selection {
-  background: rgba(34, 211, 238, 0.35);
-}
-
+/* Subtle interaction transitions — kept short and restrained */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Custom scrollbar for scrollable areas */
+.scrollable-modal::-webkit-scrollbar {
+  width: 8px;
+}
+.scrollable-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollable-modal::-webkit-scrollbar-thumb {
+  background: var(--line-hover);
+  border-radius: 4px;
+}
+.scrollable-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-dim);
+}
+
+/* Modal entrance */
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

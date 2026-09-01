@@ -25,4 +25,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health/live || exit 1
 
-CMD ["node", "server.js"]
+# Run DB migrations, then start the server
+CMD ["node", "src/config/start-render.js"]

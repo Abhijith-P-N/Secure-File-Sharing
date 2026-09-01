@@ -36,7 +36,12 @@ CREATE TABLE users (
     role          VARCHAR(20)      NOT NULL DEFAULT 'user'
                   CONSTRAINT ck_users_role
                   CHECK (role IN ('user', 'admin')),
-    created_at    TIMESTAMPTZ      NOT NULL DEFAULT now()
+    totp_secret   TEXT             NULL
+                  CONSTRAINT ck_users_totp_secret_length
+                  CHECK (totp_secret IS NULL OR char_length(totp_secret) BETWEEN 16 AND 64),
+    totp_enabled  BOOLEAN          NOT NULL DEFAULT FALSE,
+    created_at    TIMESTAMPTZ      NOT NULL DEFAULT now(),
+    deleted_at    TIMESTAMPTZ
 );
 
 -- Unique email (case-insensitive) for login lookups
@@ -67,7 +72,8 @@ CREATE TABLE files (
     sha256        CHAR(64)      NOT NULL
                   CONSTRAINT ck_files_sha256_hex
                   CHECK (sha256 ~ '^[a-f0-9]{64}$'),     -- SHA-256 hex digest
-    created_at    TIMESTAMPTZ   NOT NULL DEFAULT now()
+    created_at    TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    deleted_at    TIMESTAMPTZ
 );
 
 -- Unique stored names prevent collisions / overwrites in storage
@@ -100,7 +106,8 @@ CREATE TABLE shares (
     revoked_at     TIMESTAMPTZ   NULL,
     created_by     UUID          NOT NULL
                    REFERENCES users(id) ON DELETE CASCADE,
-    created_at     TIMESTAMPTZ   NOT NULL DEFAULT now()
+    created_at     TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    deleted_at     TIMESTAMPTZ
 );
 
 -- Lookup by token fingerprint (public share key, hashed)
@@ -153,11 +160,62 @@ CREATE TABLE refresh_tokens (
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
+-- ============================================================================
+-- refresh_tokens
+-- ============================================================================
+CREATE TABLE refresh_tokens (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID         NOT NULL
+                 REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  CHAR(64)     NOT NULL
+                 CONSTRAINT ck_refresh_tokens_hash_hex
+                 CHECK (token_hash ~ '^[a-f0-9]{64}$'),   -- SHA-256 of the raw token
+    expires_at  TIMESTAMPTZ  NOT NULL,
+    revoked_at  TIMESTAMPTZ  NULL,
+    ip          TEXT         NULL,
+    user_agent  TEXT         NULL,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
 -- Lookup + rotation by fingerprint
 CREATE UNIQUE INDEX uq_refresh_tokens_token_hash ON refresh_tokens (token_hash);
 -- Revoke-all-on-logout / per-user sessions
 CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens (user_id);
 -- Cleanup / garbage collection of expired tokens
 CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens (expires_at);
+
+-- ============================================================================
+-- upload_sessions (for chunked/resumable uploads)
+-- ============================================================================
+CREATE TABLE upload_sessions (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id          UUID          NOT NULL
+                     REFERENCES users(id) ON DELETE CASCADE,
+    file_id          UUID          NULL
+                     REFERENCES files(id) ON DELETE SET NULL,
+    original_name    VARCHAR(255)  NOT NULL,
+    mime_type        VARCHAR(255)  NOT NULL,
+    total_size       BIGINT        NOT NULL
+                     CONSTRAINT ck_upload_sessions_total_size_positive
+                     CHECK (total_size > 0),
+    chunk_size       INTEGER       NOT NULL DEFAULT 5242880,  -- 5MB default
+    total_chunks     INTEGER       NOT NULL
+                     CONSTRAINT ck_upload_sessions_total_chunks_positive
+                     CHECK (total_chunks > 0),
+    uploaded_chunks  INTEGER[]     NOT NULL DEFAULT '{}',
+    status           VARCHAR(20)   NOT NULL DEFAULT 'pending'
+                     CONSTRAINT ck_upload_sessions_status
+                     CHECK (status IN ('pending', 'uploading', 'completed', 'failed', 'expired')),
+    sha256           CHAR(64)      NULL
+                     CONSTRAINT ck_upload_sessions_sha256_hex
+                     CHECK (sha256 IS NULL OR sha256 ~ '^[a-f0-9]{64}$'),
+    expires_at       TIMESTAMPTZ   NOT NULL,
+    created_at       TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ   NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_upload_sessions_user_id ON upload_sessions (user_id);
+CREATE INDEX idx_upload_sessions_status ON upload_sessions (status);
+CREATE INDEX idx_upload_sessions_expires_at ON upload_sessions (expires_at);
 
 COMMIT;

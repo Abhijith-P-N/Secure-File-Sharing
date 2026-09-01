@@ -1,13 +1,15 @@
 export default function Loader({ label = 'Loading...', size = 'md' }) {
   const sizes = {
     sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-10 w-10',
+    md: 'h-5 w-5',
+    lg: 'h-8 w-8',
   }
 
   return (
-    <div className="flex items-center justify-center gap-3 py-4 text-slate-300" role="status" aria-live="polite">
-      <span className={`inline-block animate-spin rounded-full border-2 border-slate-600 border-t-cyan-400 ${sizes[size] || sizes.md}`} />
+    <div className="flex items-center justify-center gap-3 py-16 text-muted" role="status" aria-live="polite">
+      <span
+        className={`inline-block animate-spin rounded-full border-2 border-border border-t-primary ${sizes[size] || sizes.md}`}
+      />
       <span className="text-sm">{label}</span>
     </div>
   )

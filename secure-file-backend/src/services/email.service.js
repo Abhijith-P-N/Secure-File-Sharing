@@ -52,3 +52,31 @@ export async function sendAccessCode(to, code, fileName) {
     logger.info("Access code (no SMTP configured — logged only)", { to, code, fileName });
   }
 }
+
+export async function sendPasswordResetCode(to, code) {
+  const subject = "VaultGuard — Password reset code";
+  const html = `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#315ef7">VaultGuard — One-Time Code</h2>
+      <p>We received a request to reset the password for your VaultGuard account.</p>
+      <div style="background:#f1f5f9;border-radius:8px;padding:16px;text-align:center;margin:20px 0">
+        <p style="font-size:12px;color:#64748b;margin:0 0 4px">Your one-time code</p>
+        <p style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#0f172a;margin:0">${code}</p>
+      </div>
+      <p style="color:#64748b;font-size:13px">This code expires in 10 minutes. If you did not request this, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  const transport = getTransporter();
+  if (transport) {
+    try {
+      await transport.sendMail({ from: SMTP_FROM, to, subject, html });
+      logger.info("Password reset code email sent", { to });
+    } catch (err) {
+      logger.error("Failed to send password reset email", { to, error: err.message });
+      throw err;
+    }
+  } else {
+    logger.info("Password reset code (no SMTP configured — logged only)", { to, code });
+  }
+}

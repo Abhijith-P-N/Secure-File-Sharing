@@ -1,0 +1,76 @@
+# Render Blueprint — VaultGuard (Secure File Sharing)
+# Deploy via: Render Dashboard -> New -> Blueprint -> point at this repo.
+# This creates a managed Postgres, the backend web service, and the frontend.
+
+services:
+  # ---------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------
+  - type: postgres
+    name: vaultguard-db
+    plan: free
+    ipAllowList: []          # allow connections from any Render service
+    database: secure_files
+    user: vaultguard
+
+  # ---------------------------------------------------------------
+  # Backend API
+  # ---------------------------------------------------------------
+  - type: web
+    name: vaultguard-backend
+    runtime: docker
+    # Needs a paid plan (Starter+) for the persistent disk that stores uploads.
+    plan: starter
+    rootDir: secure-file-backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health/live
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vaultguard-db
+          property: connectionString
+      - key: CORS_ORIGIN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FILE_ENCRYPTION_KEY
+        generateValue: true
+      - key: MAX_FILE_SIZE_MB
+        value: 2048
+      # SMTP settings if email verification is used
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+    disk:
+      name: uploads
+      mountPath: /app/uploads
+      sizeGB: 1
+
+  # ---------------------------------------------------------------
+  # Frontend (nginx serving built app + proxying /api)
+  # ---------------------------------------------------------------
+  - type: web
+    name: vaultguard-frontend
+    runtime: docker
+    plan: free
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: BACKEND_URL
+        value: http://vaultguard-backend:10000
