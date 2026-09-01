@@ -149,23 +149,6 @@ CREATE INDEX idx_access_logs_success ON access_logs (success, created_at DESC);
 CREATE TABLE refresh_tokens (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID         NOT NULL
-                REFERENCES users(id) ON DELETE CASCADE,
-    token_hash  CHAR(64)     NOT NULL
-                CONSTRAINT ck_refresh_tokens_hash_hex
-                CHECK (token_hash ~ '^[a-f0-9]{64}$'),   -- SHA-256 of the raw token
-    expires_at  TIMESTAMPTZ  NOT NULL,
-    revoked_at  TIMESTAMPTZ  NULL,
-    ip          TEXT         NULL,
-    user_agent  TEXT         NULL,
-    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
-);
-
--- ============================================================================
--- refresh_tokens
--- ============================================================================
-CREATE TABLE refresh_tokens (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID         NOT NULL
                  REFERENCES users(id) ON DELETE CASCADE,
     token_hash  CHAR(64)     NOT NULL
                  CONSTRAINT ck_refresh_tokens_hash_hex
