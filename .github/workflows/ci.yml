@@ -36,16 +36,10 @@ jobs:
             secure-file-backend/package-lock.json
             frontend/package-lock.json
 
-      # -------------------------
-      # Backend
-      # -------------------------
       - name: Install backend dependencies
         run: npm ci
         working-directory: secure-file-backend
 
-      # -------------------------
-      # Frontend
-      # -------------------------
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
@@ -81,7 +75,6 @@ jobs:
           --health-retries 5
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -96,13 +89,9 @@ jobs:
         run: npm ci
         working-directory: secure-file-backend
 
-      # -------------------------
-      # Apply database schema
-      # -------------------------
       - name: Apply database schema
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/secure_files_test
-
         run: |
           node --input-type=module -e "
             import pg from 'pg';
@@ -125,12 +114,8 @@ jobs:
 
             await client.end();
           "
-
         working-directory: secure-file-backend
 
-      # -------------------------
-      # Backend tests
-      # -------------------------
       - name: Run backend tests
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/secure_files_test
@@ -138,7 +123,6 @@ jobs:
           FILE_ENCRYPTION_KEY: test-encryption-key-at-least-32-chars
           NODE_ENV: test
           DISABLE_RATE_LIMIT: '1'
-
         run: npm test
         working-directory: secure-file-backend
 
@@ -151,7 +135,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -176,7 +159,7 @@ jobs:
 
 
   # ============================================================
-  # DOCKER BUILD & PUSH
+  # BUILD DOCKER IMAGES
   # ============================================================
   build-images:
     name: Build Docker Images
@@ -195,13 +178,11 @@ jobs:
       packages: write
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # --------------------------------------------------------
-      # Convert GitHub repository name to lowercase
-      # Docker/OCI image names must be lowercase.
+      # Convert repository name to lowercase
       # --------------------------------------------------------
       - name: Set lowercase repository name
         id: repo
@@ -209,15 +190,14 @@ jobs:
         run: |
           REPOSITORY=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          echo "Repository:"
-          echo "$REPOSITORY"
+          echo "Repository: $REPOSITORY"
 
           echo "name=$REPOSITORY" >> "$GITHUB_OUTPUT"
 
       # --------------------------------------------------------
-      # Display image names for debugging
+      # Verify generated image names
       # --------------------------------------------------------
-      - name: Show Docker image names
+      - name: Verify Docker image tags
         run: |
           echo "Backend image:"
           echo "ghcr.io/${{ steps.repo.outputs.name }}/backend:${{ github.sha }}"
@@ -232,7 +212,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       # --------------------------------------------------------
-      # Login to GitHub Container Registry
+      # Login to GHCR
       # --------------------------------------------------------
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -241,40 +221,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ========================================================
-      # BACKEND IMAGE
-      # ========================================================
+      # --------------------------------------------------------
+      # Backend Docker image
+      # --------------------------------------------------------
       - name: Build and push backend image
         uses: docker/build-push-action@v6
-
         with:
           context: ./secure-file-backend
-
           push: true
-
-          tags: |
-            ghcr.io/${{ steps.repo.outputs.name }}/backend:${{ github.sha }}
-
+          tags: ghcr.io/${{ steps.repo.outputs.name }}/backend:${{ github.sha }}
           cache-from: type=gha
-
           cache-to: type=gha,mode=max
 
-      # ========================================================
-      # FRONTEND IMAGE
-      # ========================================================
+      # --------------------------------------------------------
+      # Frontend Docker image
+      # --------------------------------------------------------
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
-
         with:
           context: ./frontend
-
           push: true
-
-          tags: |
-            ghcr.io/${{ steps.repo.outputs.name }}/frontend:${{ github.sha }}
-
+          tags: ghcr.io/${{ steps.repo.outputs.name }}/frontend:${{ github.sha }}
           cache-from: type=gha
-
           cache-to: type=gha,mode=max
 
 
@@ -294,31 +262,18 @@ jobs:
       name: staging
 
     steps:
-
       - name: Deploy to staging server
         run: |
-          echo "=============================================="
+          echo "=========================================="
           echo "Deploying VaultGuard to staging..."
-          echo "=============================================="
+          echo "=========================================="
 
           echo "Backend image:"
-          echo "ghcr.io/${{ github.repository }}/backend:${{ github.sha }}"
+          echo "ghcr.io/${{ github.repository_owner }}/secure-file-sharing-/backend:${{ github.sha }}"
 
           echo "Frontend image:"
-          echo "ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}"
+          echo "ghcr.io/${{ github.repository_owner }}/secure-file-sharing-/frontend:${{ github.sha }}"
 
           echo ""
           echo "Staging deployment placeholder."
           echo "Configure SSH/deployment commands here."
-
-          # Example:
-          #
-          # ssh deploy@staging "
-          #   docker compose \
-          #     -f /app/docker-compose.staging.yml \
-          #     pull &&
-          #
-          #   docker compose \
-          #     -f /app/docker-compose.staging.yml \
-          #     up -d
-          # "
