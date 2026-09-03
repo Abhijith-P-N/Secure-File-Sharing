@@ -7,19 +7,20 @@ on:
     branches: [main, develop]
 
 env:
-  NODE_VERSION: '20'
-  PNPM_VERSION: '9'
+  NODE_VERSION: '24'
 
 jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: |
             secure-file-backend/package-lock.json
             frontend/package-lock.json
@@ -39,6 +40,7 @@ jobs:
   test-backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -56,10 +58,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: secure-file-backend/package-lock.json
 
       - name: Install dependencies
@@ -70,14 +73,25 @@ jobs:
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/secure_files_test
         run: |
-          node -e "
+          node --input-type=module -e "
             import pg from 'pg';
             import fs from 'node:fs';
-            const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+
+            const client = new pg.Client({
+              connectionString: process.env.DATABASE_URL
+            });
+
             await client.connect();
-            const schema = fs.readFileSync('src/config/schema.sql', 'utf8');
+
+            const schema = fs.readFileSync(
+              'src/config/schema.sql',
+              'utf8'
+            );
+
             await client.query(schema);
+
             console.log('Schema applied');
+
             await client.end();
           "
         working-directory: secure-file-backend
@@ -95,12 +109,14 @@ jobs:
   test-frontend:
     name: Frontend Tests
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
@@ -118,10 +134,26 @@ jobs:
   build-images:
     name: Build Docker Images
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend]
+
+    needs:
+      - test-backend
+      - test-frontend
+
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set lowercase repository name
+        id: repo
+        shell: bash
+        run: |
+          REPOSITORY=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "name=$REPOSITORY" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -134,32 +166,40 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./secure-file-backend
           push: true
-          tags: ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+          tags: ghcr.io/${{ steps.repo.outputs.name }}/backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build and push frontend
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+          tags: ghcr.io/${{ steps.repo.outputs.name }}/frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [build-images]
+
+    needs:
+      - build-images
+
     if: github.ref == 'refs/heads/develop'
+
     environment: staging
+
     steps:
       - name: Deploy to staging server
         run: |
           echo "Deploying to staging..."
           # Add your deployment script here
-          # Example: ssh deploy@staging "docker compose -f /app/docker-compose.staging.yml pull && docker compose up -d"
+          # Example:
+          # ssh deploy@staging \
+          #   "docker compose -f /app/docker-compose.staging.yml pull && \
+          #    docker compose -f /app/docker-compose.staging.yml up -d"
