@@ -299,6 +299,23 @@ echo [INFO] Waiting for database initialization...
 timeout /t 15 /nobreak >nul
 
 REM --------------------------------------------------------------
+REM Apply database migrations
+REM --------------------------------------------------------------
+
+echo [START] Applying database migrations...
+pushd "%ROOT%secure-file-backend"
+call npm.cmd run db:migrate
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Database migration failed.
+    popd
+    pause
+    exit /b 1
+)
+popd
+echo [OK] Database migrations applied.
+
+REM --------------------------------------------------------------
 REM Start backend
 REM --------------------------------------------------------------
 
@@ -332,6 +349,8 @@ echo.
 echo     1. VaultGuard - Database
 echo     2. VaultGuard - Backend
 echo     3. VaultGuard - Frontend
+echo.
+echo   Database migrations are applied automatically before the backend starts.
 echo.
 echo   Keep those windows open while using VaultGuard.
 echo.
