@@ -1,0 +1,40 @@
+{
+  "name": "secure-file-backend",
+  "version": "1.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "dev:local": "node scripts/dev-local.mjs",
+    "db:local": "node scripts/db-local.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:status": "node scripts/migrate.mjs status",
+    "test": "node --test",
+    "test:integration": "node --test tests/integration.test.js",
+    "seed:admin": "node scripts/seed-admin.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "file-type": "^22.0.2",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "nodemailer": "^9.0.5",
+    "otplib": "^13.4.1",
+    "pg": "^8.16.3",
+    "qrcode": "^1.5.4",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "embedded-postgres": "^18.4.0-beta.17",
+    "pg-mem": "^3.0.14",
+    "supertest": "^7.2.2"
+  }
+}
