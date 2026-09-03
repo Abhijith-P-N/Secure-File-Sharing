@@ -12,7 +12,7 @@ Requirements:
 
 ```bash
 npm install
-
+  
 # Option A: use the bundled real PostgreSQL (no Docker/root required)
 npm run db:local
 
