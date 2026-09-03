@@ -2,22 +2,33 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
+
   pull_request:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
 
 env:
   NODE_VERSION: '24'
 
 jobs:
+
+  # ============================================================
+  # LINT
+  # ============================================================
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -25,10 +36,16 @@ jobs:
             secure-file-backend/package-lock.json
             frontend/package-lock.json
 
+      # -------------------------
+      # Backend
+      # -------------------------
       - name: Install backend dependencies
         run: npm ci
         working-directory: secure-file-backend
 
+      # -------------------------
+      # Frontend
+      # -------------------------
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
@@ -37,6 +54,10 @@ jobs:
         run: npm run lint
         working-directory: frontend
 
+
+  # ============================================================
+  # BACKEND TESTS
+  # ============================================================
   test-backend:
     name: Backend Tests
     runs-on: ubuntu-latest
@@ -44,12 +65,15 @@ jobs:
     services:
       postgres:
         image: postgres:16-alpine
+
         env:
           POSTGRES_USER: test_user
           POSTGRES_PASSWORD: test_password
           POSTGRES_DB: secure_files_test
+
         ports:
           - 5432:5432
+
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -57,21 +81,28 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: secure-file-backend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: npm ci
         working-directory: secure-file-backend
 
-      - name: Apply schema
+      # -------------------------
+      # Apply database schema
+      # -------------------------
+      - name: Apply database schema
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/secure_files_test
+
         run: |
           node --input-type=module -e "
             import pg from 'pg';
@@ -90,47 +121,63 @@ jobs:
 
             await client.query(schema);
 
-            console.log('Schema applied');
+            console.log('Database schema applied successfully');
 
             await client.end();
           "
+
         working-directory: secure-file-backend
 
-      - name: Run tests
+      # -------------------------
+      # Backend tests
+      # -------------------------
+      - name: Run backend tests
         env:
           DATABASE_URL: postgresql://test_user:test_password@localhost:5432/secure_files_test
           JWT_SECRET: test-jwt-secret
           FILE_ENCRYPTION_KEY: test-encryption-key-at-least-32-chars
           NODE_ENV: test
           DISABLE_RATE_LIMIT: '1'
+
         run: npm test
         working-directory: secure-file-backend
 
+
+  # ============================================================
+  # FRONTEND TESTS
+  # ============================================================
   test-frontend:
     name: Frontend Tests
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
 
-      - name: Run tests
+      - name: Run frontend tests
         run: npm test
         working-directory: frontend
 
-      - name: Build
+      - name: Build frontend
         run: npm run build
         working-directory: frontend
 
+
+  # ============================================================
+  # DOCKER BUILD & PUSH
+  # ============================================================
   build-images:
     name: Build Docker Images
     runs-on: ubuntu-latest
@@ -139,25 +186,54 @@ jobs:
       - test-backend
       - test-frontend
 
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: >
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/develop'
 
     permissions:
       contents: read
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --------------------------------------------------------
+      # Convert GitHub repository name to lowercase
+      # Docker/OCI image names must be lowercase.
+      # --------------------------------------------------------
       - name: Set lowercase repository name
         id: repo
         shell: bash
         run: |
           REPOSITORY=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+          echo "Repository:"
+          echo "$REPOSITORY"
+
           echo "name=$REPOSITORY" >> "$GITHUB_OUTPUT"
 
+      # --------------------------------------------------------
+      # Display image names for debugging
+      # --------------------------------------------------------
+      - name: Show Docker image names
+        run: |
+          echo "Backend image:"
+          echo "ghcr.io/${{ steps.repo.outputs.name }}/backend:${{ github.sha }}"
+
+          echo "Frontend image:"
+          echo "ghcr.io/${{ steps.repo.outputs.name }}/frontend:${{ github.sha }}"
+
+      # --------------------------------------------------------
+      # Docker Buildx
+      # --------------------------------------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # --------------------------------------------------------
+      # Login to GitHub Container Registry
+      # --------------------------------------------------------
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -165,24 +241,46 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend
+      # ========================================================
+      # BACKEND IMAGE
+      # ========================================================
+      - name: Build and push backend image
         uses: docker/build-push-action@v6
+
         with:
           context: ./secure-file-backend
+
           push: true
-          tags: ghcr.io/${{ steps.repo.outputs.name }}/backend:${{ github.sha }}
+
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.name }}/backend:${{ github.sha }}
+
           cache-from: type=gha
+
           cache-to: type=gha,mode=max
 
-      - name: Build and push frontend
+      # ========================================================
+      # FRONTEND IMAGE
+      # ========================================================
+      - name: Build and push frontend image
         uses: docker/build-push-action@v6
+
         with:
           context: ./frontend
+
           push: true
-          tags: ghcr.io/${{ steps.repo.outputs.name }}/frontend:${{ github.sha }}
+
+          tags: |
+            ghcr.io/${{ steps.repo.outputs.name }}/frontend:${{ github.sha }}
+
           cache-from: type=gha
+
           cache-to: type=gha,mode=max
 
+
+  # ============================================================
+  # STAGING DEPLOYMENT
+  # ============================================================
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
@@ -192,14 +290,35 @@ jobs:
 
     if: github.ref == 'refs/heads/develop'
 
-    environment: staging
+    environment:
+      name: staging
 
     steps:
+
       - name: Deploy to staging server
         run: |
-          echo "Deploying to staging..."
-          # Add your deployment script here
+          echo "=============================================="
+          echo "Deploying VaultGuard to staging..."
+          echo "=============================================="
+
+          echo "Backend image:"
+          echo "ghcr.io/${{ github.repository }}/backend:${{ github.sha }}"
+
+          echo "Frontend image:"
+          echo "ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}"
+
+          echo ""
+          echo "Staging deployment placeholder."
+          echo "Configure SSH/deployment commands here."
+
           # Example:
-          # ssh deploy@staging \
-          #   "docker compose -f /app/docker-compose.staging.yml pull && \
-          #    docker compose -f /app/docker-compose.staging.yml up -d"
+          #
+          # ssh deploy@staging "
+          #   docker compose \
+          #     -f /app/docker-compose.staging.yml \
+          #     pull &&
+          #
+          #   docker compose \
+          #     -f /app/docker-compose.staging.yml \
+          #     up -d
+          # "
