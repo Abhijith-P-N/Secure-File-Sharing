@@ -42,21 +42,28 @@ PIDS+=($!)
 # Give the DB a moment to come up before the backend connects.
 sleep 4
 
-# 2) Backend API
+# 2) Apply any pending database migrations
 echo ""
-echo "[2/3] Starting backend API ..."
+echo "[2/4] Applying database migrations ..."
+( cd "$BACKEND" && npm run db:migrate )
+echo "Migrations complete."
+
+# 3) Backend API
+echo ""
+echo "[3/4] Starting backend API ..."
 ( cd "$BACKEND" && npm run dev ) &
 PIDS+=($!)
 
-# 3) Frontend (Vite)
+# 4) Frontend (Vite)
 echo ""
-echo "[3/3] Starting frontend ..."
+echo "[4/4] Starting frontend ..."
 ( cd "$FRONTEND" && npm run dev ) &
 PIDS+=($!)
 
 echo ""
 echo "=============================================================="
 echo "  All services launching. Press Ctrl+C to stop everything."
+echo "  DB migrations : applied automatically on every start"
 echo "  Frontend : http://localhost:5173"
 echo "  Backend  : http://localhost:8000"
 echo "=============================================================="
