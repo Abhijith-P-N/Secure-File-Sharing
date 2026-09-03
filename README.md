@@ -4,7 +4,7 @@ A full-stack, security-focused file-sharing web application with end-to-end encr
 
 Upload files, encrypt them with AES-256-GCM, share via secure links with optional password protection, expiration, and download limits — all with ownership-based authorization and full audit trails.
 
-## Features
+## Features    
 
 - **AES-256-GCM encryption** — every file encrypted at rest with envelope encryption
 - **SHA-256 integrity verification** — files verified on every download
