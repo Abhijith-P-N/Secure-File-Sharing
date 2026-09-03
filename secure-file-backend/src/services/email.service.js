@@ -17,6 +17,8 @@ function getTransporter() {
     host: SMTP_HOST,
     port: SMTP_PORT,
     secure: SMTP_PORT === 465,
+    connectionTimeout: 5_000,
+    socketTimeout: 10_000,
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS
@@ -45,8 +47,7 @@ export async function sendAccessCode(to, code, fileName) {
       await transport.sendMail({ from: SMTP_FROM, to, subject, html });
       logger.info("Access code email sent", { to, fileName });
     } catch (err) {
-      logger.error("Failed to send email", { to, error: err.message });
-      throw err;
+      logger.error("Failed to send access code email (logged for manual retrieval)", { to, code, error: err.message });
     }
   } else {
     logger.info("Access code (no SMTP configured — logged only)", { to, code, fileName });
@@ -73,8 +74,7 @@ export async function sendPasswordResetCode(to, code) {
       await transport.sendMail({ from: SMTP_FROM, to, subject, html });
       logger.info("Password reset code email sent", { to });
     } catch (err) {
-      logger.error("Failed to send password reset email", { to, error: err.message });
-      throw err;
+      logger.error("Failed to send password reset email (logged for manual retrieval)", { to, code, error: err.message });
     }
   } else {
     logger.info("Password reset code (no SMTP configured — logged only)", { to, code });

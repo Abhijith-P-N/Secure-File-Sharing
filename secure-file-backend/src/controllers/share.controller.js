@@ -142,21 +142,41 @@ export async function accessShare(req, res) {
 }
 
 async function findShare(idOrToken) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrToken);
+  if (isUuid) {
+    const { rows } = await query(
+      `SELECT s.*, f.owner_id, f.original_name, f.mime_type, f.size_bytes, f.sha256, f.stored_name
+       FROM shares s JOIN files f ON f.id=s.file_id
+       WHERE s.id=$1 AND s.deleted_at IS NULL`,
+      [idOrToken]
+    );
+    return rows[0];
+  }
   const { rows } = await query(
     `SELECT s.*, f.owner_id, f.original_name, f.mime_type, f.size_bytes, f.sha256, f.stored_name
      FROM shares s JOIN files f ON f.id=s.file_id
-     WHERE (s.id=$1 OR s.token_hash=$2) AND s.deleted_at IS NULL`,
-    [idOrToken, hashToken(idOrToken)]
+     WHERE s.token_hash=$1 AND s.deleted_at IS NULL`,
+    [hashToken(idOrToken)]
   );
   return rows[0];
 }
 
 async function readShareRow(client, idOrToken) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrToken);
+  if (isUuid) {
+    const { rows } = await client.query(
+      `SELECT s.*, f.owner_id, f.original_name, f.mime_type, f.size_bytes, f.sha256, f.stored_name
+       FROM shares s JOIN files f ON f.id=s.file_id
+       WHERE s.id=$1 AND s.deleted_at IS NULL FOR UPDATE`,
+      [idOrToken]
+    );
+    return rows[0];
+  }
   const { rows } = await client.query(
     `SELECT s.*, f.owner_id, f.original_name, f.mime_type, f.size_bytes, f.sha256, f.stored_name
      FROM shares s JOIN files f ON f.id=s.file_id
-     WHERE (s.id=$1 OR s.token_hash=$2) AND s.deleted_at IS NULL FOR UPDATE`,
-    [idOrToken, hashToken(idOrToken)]
+     WHERE s.token_hash=$1 AND s.deleted_at IS NULL FOR UPDATE`,
+    [hashToken(idOrToken)]
   );
   return rows[0];
 }
