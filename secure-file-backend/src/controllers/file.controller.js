@@ -9,7 +9,7 @@ export async function uploadFile(req, res) {
   if (!req.file) return fail(res, 400, "A file is required");
 
   try {
-    await validateFileSignature(req.file.buffer, req.file.mimetype);
+    await validateFileSignature(req.file.buffer, req.file.mimetype, req.file.originalname);
   } catch (e) {
     if (e instanceof FileValidationError) {
       return fail(res, 400, e.message);

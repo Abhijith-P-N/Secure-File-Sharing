@@ -13,11 +13,21 @@ const SIGNATURE_TYPES = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],
   ["image/gif", "gif"],
-  ["application/zip", "zip"]
+  ["application/zip", "zip"],
+  ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "pptx"]
 ]);
 
 // Types with no signature bytes; validated as plain text only.
-const TEXTUAL_TYPES = new Set(["text/plain", "application/json"]);
+const TEXTUAL_TYPES = new Set([
+  "text/plain",
+  "application/json",
+  "text/x-log",
+  "text/log",
+  "application/octet-stream"
+]);
+
+// Extensions whose type has no reliable signature; treated as plain text.
+const TEXTUAL_EXTENSIONS = new Set(["log", "ovpn", "txt"]);
 
 function looksBinary(head) {
   // Heuristic: text files rarely contain NUL bytes in the first 1 KiB.
@@ -27,12 +37,14 @@ function looksBinary(head) {
   return false;
 }
 
-export async function validateFileSignature(buffer, declaredMime) {
+export async function validateFileSignature(buffer, declaredMime, originalName = "") {
   if (!buffer || buffer.length === 0) {
     throw new FileValidationError("Empty files are not allowed");
   }
 
-  if (TEXTUAL_TYPES.has(declaredMime)) {
+  const ext = (originalName.match(/\.([^.\\/]+)$/)?.[1] || "").toLowerCase();
+
+  if (TEXTUAL_TYPES.has(declaredMime) || TEXTUAL_EXTENSIONS.has(ext)) {
     if (looksBinary(buffer.subarray(0, 1024))) {
       throw new FileValidationError(`Content does not match declared type ${declaredMime}`);
     }
@@ -43,7 +55,10 @@ export async function validateFileSignature(buffer, declaredMime) {
   if (!detected) {
     throw new FileValidationError("File signature could not be determined");
   }
-  if (SIGNATURE_TYPES.get(declaredMime) !== detected.ext || detected.mime !== declaredMime) {
+  const expectedExt = SIGNATURE_TYPES.get(declaredMime);
+  // OOXML formats (pptx/docx/xlsx) are ZIP containers and are detected as "zip".
+  const isZipContainer = detected.ext === "zip" && expectedExt === "pptx";
+  if (expectedExt !== detected.ext && !isZipContainer) {
     throw new FileValidationError("File content does not match its declared type");
   }
   return true;

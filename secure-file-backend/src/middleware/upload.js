@@ -10,8 +10,14 @@ const allowed = new Set([
   "image/png",
   "image/gif",
   "application/zip",
-  "application/json"
+  "application/json",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/x-log",
+  "text/log",
+  "application/octet-stream"
 ]);
+
+const allowedExtensions = new Set(["pptx", "log", "ovpn", "txt", "json", "pdf", "jpg", "jpeg", "png", "gif", "zip"]);
 
 const storage = multer.memoryStorage();
 
@@ -23,10 +29,13 @@ export const upload = multer({
     fields: 10
   },
   fileFilter: (_req, file, cb) => {
-    if (!allowed.has(file.mimetype)) {
-      return cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE"));
+    const ext = path.extname(file.originalname).slice(1).toLowerCase();
+    if (allowed.has(file.mimetype) || allowedExtensions.has(ext)) {
+      file.originalname = safeFilename(path.basename(file.originalname));
+      return cb(null, true);
     }
-    file.originalname = safeFilename(path.basename(file.originalname));
-    cb(null, true);
+    const err = new Error(`Unsupported file type: ${file.mimetype}. Allowed: ${[...allowed].join(", ")} or extensions .${[...allowedExtensions].join(", .")}`);
+    err.status = 400;
+    return cb(err);
   }
 }).single("file");

@@ -48,6 +48,27 @@ Upload files, encrypt them with AES-256-GCM, share via secure links with optiona
 - PostgreSQL 16+ (or use Docker)
 - npm
 
+### Windows (one-command setup)
+
+On Windows, run the all-in-one setup script — it installs dependencies, generates
+secure keys, creates `.env` files, and starts the whole stack for you:
+
+```
+1. Install Node.js 20+ (LTS):  https://nodejs.org/  (npm is included)
+2. Double-click  setup-windows.bat   (or run it from a terminal)
+```
+
+What the script does:
+- Checks that Node.js / npm are installed
+- `npm install` in `secure-file-backend`, `frontend`, and `security`
+- Creates `.env` files (if missing) and auto-generates `JWT_SECRET` + `FILE_ENCRYPTION_KEY`
+- Starts **embedded PostgreSQL** (auto-downloads binaries on first run — no Docker needed)
+- Starts the backend API and the frontend
+- Seeds the admin account and opens your browser
+
+> Requires an Internet connection on the *first* run (to download npm packages and
+> the embedded PostgreSQL binaries). Each service runs in its own window.
+
 ### 1. Clone
 
 ```bash
