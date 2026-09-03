@@ -159,7 +159,7 @@ test("full secure file-sharing flow", async (t) => {
   const dl3 = await request
     .post(`/api/shares/${share.token}/download`)
     .send({ password: "sharepass" });
-  assert.equal(dl3.status, 403, "download limit enforced");
+  assert.equal(dl3.status, 410, "download limit enforced");
 
   // ---- Revoke ----
   const revoke = await request
@@ -168,7 +168,7 @@ test("full secure file-sharing flow", async (t) => {
   assert.equal(revoke.status, 200);
 
   const afterRevoke = await request.get(`/api/shares/${share.token}?password=sharepass`);
-  assert.equal(afterRevoke.status, 403, "revoked link denied");
+  assert.equal(afterRevoke.status, 410, "revoked link denied");
 
   // ---- Second share without password, unlimited, then list shares ----
   const share2res = await request
@@ -261,7 +261,7 @@ test("expiration is enforced", async (t) => {
     [ok.body.share.id]
   );
   const expired = await request.get(`/api/shares/${ok.body.share.token}`);
-  assert.equal(expired.status, 403, "expired link denied");
+  assert.equal(expired.status, 410, "expired link denied");
   await injectedPool.end?.();
   await app?.close?.();
 });
