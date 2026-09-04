@@ -72,7 +72,7 @@ What the script does:
 ### 1. Clone
 
 ```bash
-git clone https://github.com/Abhijith-P-N/Secure-File-Sharing-.git
+git clone https://github.com/Abhijith-P-N/Secure-File-Sharing.git
 cd Secure-File-Sharing-
 ```
 
